@@ -1,56 +1,59 @@
 @import "tailwindcss";
 
 /* ===========================================================================
-   NovaSmile Elite - sistema de diseno  ·  v2 MONOCROMO EDITORIAL
-   Lenguaje: agencia de diseno. Blancos, negros y grises tintados. Inter audaz.
-   Re-mapeo los MISMOS nombres de token que ya usa la web (navy/gold/ivory/…),
-   asi todo el sitio (hero, servicios, footer) adopta el monocromo sin tocar
-   esos componentes. Jerarquia por escala y peso, no por color.
+   NovaSmile Elite - sistema de diseno  ·  v3 AZUL CLINICO + AMBAR
+   Lenguaje: clinica premium, confiable y luminosa.
+   Estrategia de color 60/30/10:
+     60% superficies claras (paper/ivory)
+     30% azul de marca + tinta (navy / ink)  -> estructura y acciones primarias
+     10% ambar (gold)                          -> acentos puntuales, nunca texto sobre claro
+   Jerarquia por escala y peso; el color refuerza, no decora.
    =========================================================================== */
 
 @theme {
   /* Base */
-  --color-paper: #FFFFFF;
-  /* Blanco puro para limpieza */
+  --color-paper: #ffffff;
+  /* superficie principal */
   --color-ink: #1e293b;
-  /* Azul muy oscuro (profesional, no negro plano) */
+  /* texto: azul muy oscuro, no negro plano */
 
-  /* Branding */
+  /* Marca (azul) */
   --color-navy: #0056b3;
-  /* Tu azul principal de marca */
+  /* azul principal: CTAs, enlaces, foco */
   --color-navy-700: #003d7a;
-  /* Azul más oscuro para estados activos */
+  /* estados activos / hover oscuro */
+  --color-navy-900: #04243f;
+  /* fondo de secciones oscuras */
   --color-clinical: #e0f2fe;
-  /* Azul muy claro para fondos suaves */
+  /* azul muy claro para fondos suaves */
 
-  /* Acentos */
-  --color-gold: #EAB308;
-  /* Amarillo brillante y optimista */
+  /* Acento (ambar) */
+  --color-gold: #eab308;
+  /* acento calido y optimista */
   --color-gold-soft: #fef08a;
-  /* Amarillo claro para fondos de acento */
+  /* acento claro */
+  --color-on-gold: #422006;
+  /* texto SOBRE ambar (contraste AA) */
 
-  /* Neutros */
+  /* Neutros tintados al azul */
   --color-ivory: #f8fafc;
-  /* Un blanco ligeramente entonado */
   --color-silver: #e2e8f0;
-  /* Gris azulado suave para bordes */
   --color-line: #cbd5e1;
-  /* Líneas divisorias */
   --color-slate: #64748b;
-  /* Texto secundario */
 
-  /* Tipografia: display TAMBIEN en Inter (audaz), no Poppins */
+  /* Tipografia: Inter audaz en display y cuerpo */
   --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-  /* Formas mas sobrias (editorial = menos radio) */
-  --radius-card: 1rem;
-  --radius-field: 0.625rem;
+  /* Formas */
+  --radius-card: 1.1rem;
+  --radius-field: 0.7rem;
   --radius-pill: 999px;
 
-  /* Sombras tintadas en tinta (no negro plano), mas sutiles */
-  --shadow-soft: 0 1px 2px oklch(0.18 0.006 270 / 0.04), 0 6px 20px oklch(0.18 0.006 270 / 0.05);
-  --shadow-lift: 0 1px 2px oklch(0.18 0.006 270 / 0.05), 0 20px 50px oklch(0.18 0.006 270 / 0.10);
+  /* Sombras tintadas en navy (coherencia de marca, no gris plano) */
+  --shadow-soft: 0 1px 2px rgb(4 36 63 / 0.05), 0 8px 24px rgb(4 36 63 / 0.07);
+  --shadow-lift: 0 2px 4px rgb(4 36 63 / 0.06), 0 24px 60px rgb(4 36 63 / 0.14);
+  --shadow-gold: 0 10px 30px rgb(234 179 8 / 0.28);
 }
 
 html {
@@ -72,13 +75,13 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Display: Inter con tracking apretado para titulares grandes */
+/* Display: Inter con tracking apretado para titulares */
 .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.025em;
 }
 
-/* --- Campo de formulario: 16px para evitar el zoom de iOS, foco en tinta --- */
+/* --- Campo de formulario: 16px (anti-zoom iOS), foco en azul de marca --- */
 .field {
   width: 100%;
   border-radius: var(--radius-field);
@@ -86,20 +89,19 @@ body {
   background: #fff;
   padding: 0.85rem 0.95rem;
   font-size: 1rem;
-  /* 16px: clave en movil */
   line-height: 1.4;
   color: var(--color-ink);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .field::placeholder {
-  color: oklch(0.66 0.006 270);
+  color: #94a3b8;
 }
 
 .field:focus {
   outline: none;
-  border-color: var(--color-ink);
-  box-shadow: 0 0 0 3px oklch(0.18 0.006 270 / 0.10);
+  border-color: var(--color-navy);
+  box-shadow: 0 0 0 3px rgb(0 86 179 / 0.16);
 }
 
 .field:disabled {
@@ -107,35 +109,37 @@ body {
   cursor: not-allowed;
 }
 
-/* --- Seccion oscura: ahora monocroma (grafito con halos grises, sin oro) --- */
+/* --- Seccion oscura: azul profundo de marca con halos azules + un toque ambar --- */
 .bg-aurora-navy {
-  background-color: var(--color-ink);
+  background-color: var(--color-navy-900);
   background-image:
-    radial-gradient(60% 80% at 12% 8%, oklch(0.30 0.006 270 / 0.85), transparent 60%),
-    radial-gradient(50% 65% at 92% 95%, oklch(0.26 0.006 270 / 0.9), transparent 60%);
+    radial-gradient(58% 78% at 12% 8%, rgb(0 86 179 / 0.55), transparent 60%),
+    radial-gradient(42% 58% at 90% 6%, rgb(234 179 8 / 0.10), transparent 55%),
+    radial-gradient(55% 70% at 85% 96%, rgb(0 61 122 / 0.85), transparent 62%);
 }
 
 /* --- Vidrio sobre fondo oscuro (con fallback de transparencia reducida) --- */
 .glass-dark {
-  background: rgb(255 255 255 / 0.05);
-  border: 1px solid rgb(255 255 255 / 0.12);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .glass-dark {
-    background: oklch(0.24 0.006 270 / 0.95);
+    background: rgb(4 36 63 / 0.92);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
 }
 
-/* --- Filete fino, ahora gris (detalle editorial) --- */
+/* --- Filete fino ambar (detalle editorial) --- */
 .rule-gold {
-  height: 1px;
-  width: 3rem;
-  background: linear-gradient(90deg, var(--color-ink), transparent);
+  height: 2px;
+  width: 2.5rem;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-gold), transparent);
 }
 
 /* --- Grano sutil decorativo, nunca captura el puntero --- */
@@ -149,8 +153,8 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Foco visible accesible, en tinta */
+/* Foco visible accesible, en azul de marca */
 :focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--color-navy);
   outline-offset: 2px;
 }
