@@ -15,11 +15,11 @@ export async function createSupabaseServer() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: any) {
           // En Server Components la escritura de cookies puede no estar permitida.
           // La landing es publica y sin sesion, asi que ignoramos el fallo.
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
+            cookiesToSet.forEach(({ name, value, options }: any) =>
               cookieStore.set(name, value, options),
             );
           } catch {
