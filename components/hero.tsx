@@ -10,10 +10,10 @@ export function Hero({ ciudad }: { ciudad: string }) {
     reduce
       ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.4, delay } }
       : {
-          initial: { opacity: 0, y: 24 },
-          animate: { opacity: 1, y: 0 },
-          transition: { duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] as const },
-        };
+        initial: { opacity: 0, y: 24 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] as const },
+      };
 
   return (
     <section className="bg-aurora-navy relative grain min-h-[100dvh] overflow-hidden">
@@ -45,7 +45,7 @@ export function Hero({ ciudad }: { ciudad: string }) {
           <motion.div {...enter(0.24)} className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <a
               href="#reservar"
-              className="group inline-flex items-center justify-center gap-2 rounded-[var(--radius-pill)] bg-gold px-7 py-3.5 text-base font-semibold text-navy transition-transform hover:scale-[1.03] active:scale-95"
+              className="group inline-flex items-center justify-center gap-2 rounded-[var(--radius-pill)] bg-gold px-7 py-3.5 text-base font-semibold text-white transition-transform hover:scale-[1.03] active:scale-95"
             >
               Reservar mi cita
               <ArrowRight weight="bold" className="transition-transform group-hover:translate-x-1" />

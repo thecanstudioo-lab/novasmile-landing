@@ -27,9 +27,8 @@ export function SiteHeader({ nombre }: { nombre: string }) {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
-        solido ? "bg-navy/90 backdrop-blur-md shadow-[0_1px_0_rgb(255_255_255/0.06)]" : "bg-transparent"
-      }`}
+      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${solido ? "bg-navy/90 backdrop-blur-md shadow-[0_1px_0_rgb(255_255_255/0.06)]" : "bg-transparent"
+        }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
         <a href="#top" className="flex items-center gap-2 text-white" aria-label={nombre}>
@@ -49,7 +48,7 @@ export function SiteHeader({ nombre }: { nombre: string }) {
           ))}
           <a
             href="#reservar"
-            className="rounded-[var(--radius-pill)] bg-gold px-5 py-2.5 text-sm font-semibold text-navy transition-transform hover:scale-[1.03] active:scale-95"
+            className="rounded-[var(--radius-pill)] bg-gold px-5 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.03] active:scale-95"
           >
             Agendar valoracion
           </a>
