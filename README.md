@@ -27,7 +27,7 @@ npm run dev                        # http://localhost:3000
 ```
 
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`, `npm run typecheck`.
-
+## parce
 ---
 
 ## 3. Variables de entorno
@@ -38,7 +38,7 @@ Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`, `npm r
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publica | Llave anonima. Solo lee catalogo publico. |
 | `NEXT_PUBLIC_TENANT_SUBDOMINIO` | publica | Tenant que sirve la landing (`novasmile`). |
 | `BOOKING_WEBHOOK_SECRET` | **privada (solo servidor)** | Secreto HMAC con el que se firma la reserva antes de llamar a `book-appointment`. Debe ser identico al del panel de Edge Functions. |
-
+s
 > Si `BOOKING_WEBHOOK_SECRET` no esta configurado, el formulario no rompe: responde en
 > "modo demo" con un aviso claro y no envia la cita. En cuanto cargas el secreto, las reservas
 > reales empiezan a fluir.
