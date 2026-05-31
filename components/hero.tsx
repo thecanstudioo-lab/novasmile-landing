@@ -87,7 +87,7 @@ export function Hero({ ciudad }: { ciudad: string }) {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-navy-900/65 via-navy-900/5 to-transparent" />
             <div className="glass-dark absolute inset-x-4 bottom-4 rounded-[var(--radius-field)] px-4 py-3">
-              <p className="text-sm font-semibold text-white">Diseno digital de sonrisa</p>
+              <p className="text-sm font-semibold text-white">Diseño digital de sonrisa</p>
               <p className="text-xs text-white/65">Visualiza tu resultado antes de empezar</p>
             </div>
           </div>
