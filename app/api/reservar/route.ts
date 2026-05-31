@@ -19,7 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const runtime = "nodejs"; // WebCrypto global está disponible en Node 18+; forzamos node para evitar sorpresas
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPAsBASE_ANON_KEY ?? "";
 // .trim() defensivo: el error #1 de HMAC es un \n o espacio final al pegar el secreto.
 const BOOKING_SECRET = (process.env.BOOKING_WEBHOOK_SECRET ?? "").trim();
 const TENANT_HINT = (process.env.NEXT_PUBLIC_TENANT_HINT ?? "novasmile").toLowerCase();
