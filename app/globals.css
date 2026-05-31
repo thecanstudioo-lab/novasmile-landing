@@ -9,28 +9,35 @@
    =========================================================================== */
 
 @theme {
-  /* Neutros tintados (OKLCH; nada de #000/#fff puros) */
-  --color-paper: oklch(0.985 0.002 90);
-  /* casi blanco, calido */
-  --color-ink: oklch(0.18 0.006 270);
-  /* casi negro, frio */
+  /* Base */
+  --color-paper: #FFFFFF;
+  /* Blanco puro para limpieza */
+  --color-ink: #1e293b;
+  /* Azul muy oscuro (profesional, no negro plano) */
 
-  /* Re-mapeo de los nombres heredados -> escala de grises */
-  --color-navy: oklch(0.18 0.006 270);
-  /* superficies/CTA oscuros */
-  --color-navy-700: oklch(0.26 0.006 270);
-  --color-clinical: oklch(0.30 0.006 270);
-  --color-gold: oklch(0.32 0.006 270);
-  /* "acento" = grafito fuerte, no color */
-  --color-gold-soft: oklch(0.62 0.006 270);
-  --color-ivory: oklch(0.985 0.002 90);
-  /* paper */
-  --color-silver: oklch(0.955 0.003 270);
-  /* hover/relleno suave */
-  --color-line: oklch(0.905 0.004 270);
-  /* hairline */
-  --color-slate: oklch(0.50 0.006 270);
-  /* texto secundario */
+  /* Branding */
+  --color-navy: #0056b3;
+  /* Tu azul principal de marca */
+  --color-navy-700: #003d7a;
+  /* Azul más oscuro para estados activos */
+  --color-clinical: #e0f2fe;
+  /* Azul muy claro para fondos suaves */
+
+  /* Acentos */
+  --color-gold: #EAB308;
+  /* Amarillo brillante y optimista */
+  --color-gold-soft: #fef08a;
+  /* Amarillo claro para fondos de acento */
+
+  /* Neutros */
+  --color-ivory: #f8fafc;
+  /* Un blanco ligeramente entonado */
+  --color-silver: #e2e8f0;
+  /* Gris azulado suave para bordes */
+  --color-line: #cbd5e1;
+  /* Líneas divisorias */
+  --color-slate: #64748b;
+  /* Texto secundario */
 
   /* Tipografia: display TAMBIEN en Inter (audaz), no Poppins */
   --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -58,7 +65,7 @@ html {
 }
 
 body {
-  background: var(--color-paper);
+  background-color: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;

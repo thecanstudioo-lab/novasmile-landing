@@ -7,17 +7,26 @@ import {
   CircleNotch,
   CaretRight,
   CaretLeft,
-  Calendar,
   User,
   WarningCircle,
 } from "@phosphor-icons/react";
 import type { Servicio, Especialista, Sede } from "@/lib/catalog/types";
-import type { ReservaInput, ReservaResultado } from "@/lib/booking/types";
-import { proximosDias, slotsParaFecha, fechaCorta, slotLegible, type Slot } from "@/lib/booking/slots";
+import { slotsParaFecha, slotLegible, type Slot } from "@/lib/booking/slots";
+import { Calendar } from "./calendar"; // <- coloca Calenadar.tsx en la MISMA carpeta que este archivo
 
 type Datos = { nombre: string; telefono: string; email: string; notas: string; consentimiento: boolean };
 
-const DIAS = 14;
+// Respuesta REAL de /api/reservar (route.ts) — no el tipo viejo con `code`.
+type ApiResp = {
+  ok?: boolean;
+  cita_id?: string;
+  estado?: string;
+  error?: string;
+  faltantes?: string[];
+  mensaje?: string;
+  ocupados?: { fecha_cita: string; fecha_fin: string }[];
+};
+type Feedback = { tipo: "error" | "conflicto"; mensaje: string; campos?: string[] } | null;
 
 export function ReservaSection({
   servicios,
@@ -29,17 +38,17 @@ export function ReservaSection({
   sedes: Sede[];
 }) {
   const reduce = useReducedMotion();
-  const dias = useMemo(() => proximosDias(DIAS), []);
 
   const [paso, setPaso] = useState<1 | 2 | 3>(1);
-  const [servicioSlug, setServicioSlug] = useState<string>("");
-  const [especialistaId, setEspecialistaId] = useState<string>("");
-  const [sedeId, setSedeId] = useState<string>(sedes[0]?.id ?? "");
-  const [diaIdx, setDiaIdx] = useState<number>(0);
+  const [servicioSlug, setServicioSlug] = useState("");
+  const [especialistaId, setEspecialistaId] = useState("");
+  const [sedeId, setSedeId] = useState(sedes[0]?.id ?? "");
+  const [fecha, setFecha] = useState<Date | null>(null);
   const [slot, setSlot] = useState<Slot | null>(null);
   const [datos, setDatos] = useState<Datos>({ nombre: "", telefono: "", email: "", notas: "", consentimiento: false });
   const [enviando, setEnviando] = useState(false);
-  const [resultado, setResultado] = useState<ReservaResultado | null>(null);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [exito, setExito] = useState(false);
 
   // Preseleccion desde la seccion de servicios.
   useEffect(() => {
@@ -48,7 +57,8 @@ export function ReservaSection({
       if (servicios.some((s) => s.slug === slug)) {
         setServicioSlug(slug);
         setPaso(1);
-        setResultado(null);
+        setExito(false);
+        setFeedback(null);
       }
     }
     window.addEventListener("novasmile:select-servicio", onSelect);
@@ -58,16 +68,38 @@ export function ReservaSection({
   const servicioSel = servicios.find((s) => s.slug === servicioSlug) ?? null;
   const especialistaSel = especialistas.find((e) => e.id === especialistaId) ?? null;
   const sedeSel = sedes.find((s) => s.id === sedeId) ?? null;
-  const diaSel = dias[diaIdx] ?? dias[0]!;
-  const slots = useMemo(() => slotsParaFecha(diaSel), [diaSel]);
+  const slots = useMemo<Slot[]>(() => (fecha ? slotsParaFecha(fecha) : []), [fecha]);
 
   const puedePaso1 = Boolean(servicioSlug && sedeId);
   const puedePaso2 = Boolean(slot);
 
+  function reiniciar() {
+    setPaso(1);
+    setServicioSlug("");
+    setEspecialistaId("");
+    setSedeId(sedes[0]?.id ?? "");
+    setFecha(null);
+    setSlot(null);
+    setDatos({ nombre: "", telefono: "", email: "", notas: "", consentimiento: false });
+    setFeedback(null);
+    setExito(false);
+  }
+
   async function enviar() {
     if (enviando) return;
+
+    // Validacion en cliente (evita ida/vuelta y resalta campos)
+    const faltan: string[] = [];
+    if (!datos.nombre.trim()) faltan.push("paciente_nombre");
+    if (!datos.telefono.trim()) faltan.push("paciente_telefono");
+    if (!datos.consentimiento) faltan.push("consentimiento");
+    if (faltan.length) {
+      setFeedback({ tipo: "error", mensaje: "Completa los campos obligatorios.", campos: faltan });
+      return;
+    }
+
     setEnviando(true);
-    setResultado(null);
+    setFeedback(null);
 
     const payload = {
       paciente_nombre: datos.nombre,
@@ -85,45 +117,59 @@ export function ReservaSection({
       const resp = await fetch("/api/reservar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload), // <-- Enviamos el payload mapeado, no el input antiguo
+        body: JSON.stringify(payload),
       });
+      const json = (await resp.json().catch(() => ({}))) as ApiResp;
 
-      const json = (await resp.json()) as ReservaResultado;
-      setResultado(json);
+      if (resp.ok && json.ok !== false) {
+        setExito(true);
+        return;
+      }
+      if (resp.status === 409) {
+        setFeedback({ tipo: "conflicto", mensaje: "Ese horario ya no esta disponible. Elige otro." });
+        setSlot(null);
+        setPaso(2);
+        return;
+      }
+      if (resp.status === 400) {
+        setFeedback({
+          tipo: "error",
+          mensaje: json.faltantes?.length ? "Revisa los campos marcados." : (json.mensaje ?? "Revisa los datos e intenta de nuevo."),
+          campos: json.faltantes,
+        });
+        return;
+      }
+      setFeedback({ tipo: "error", mensaje: "No pudimos registrar tu cita. Intenta de nuevo en un momento." });
     } catch {
-      setResultado({ ok: false, code: "ERROR_RED", mensaje: "No pudimos enviar tu solicitud. Intenta de nuevo." });
+      setFeedback({ tipo: "error", mensaje: "Sin conexion con el servidor. Reintenta." });
     } finally {
       setEnviando(false);
     }
   }
 
-  const exito = resultado !== null && (resultado.ok || resultado.code === "CONFIG_PENDIENTE");
-
   return (
-    <section id="reservar" className="bg-aurora-navy relative grain py-20 sm:py-28">
+    <section id="reservar" className="bg-aurora-navy grain relative py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-semibold leading-tight text-white sm:text-4xl">
+          <h2 className="font-display text-3xl font-bold leading-[1.05] tracking-tight text-paper sm:text-5xl">
             Agenda tu valoracion
           </h2>
-          <p className="mt-3 text-white/70">
-            Tres pasos rapidos. Te confirmamos por WhatsApp y correo.
-          </p>
+          <p className="mt-4 text-base text-paper/60">Tres pasos. Te confirmamos por WhatsApp y correo.</p>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
+        <div className="mt-12 grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
           {/* Panel principal */}
-          <div className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-lift)] sm:p-8">
+          <div className="rounded-[var(--radius-card)] bg-white p-6 shadow-[var(--shadow-lift)] sm:p-9">
             <AnimatePresence mode="wait">
               {exito ? (
-                <Exito key="exito" resultado={resultado!} />
+                <Exito key="exito" onNueva={reiniciar} />
               ) : (
                 <motion.div
                   key={`paso-${paso}`}
-                  initial={reduce ? { opacity: 0 } : { opacity: 0, x: 18 }}
+                  initial={reduce ? { opacity: 0 } : { opacity: 0, x: 16 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={reduce ? { opacity: 0 } : { opacity: 0, x: -18 }}
-                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  exit={reduce ? { opacity: 0 } : { opacity: 0, x: -16 }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                 >
                   <Progreso paso={paso} />
 
@@ -142,32 +188,61 @@ export function ReservaSection({
                   )}
 
                   {paso === 2 && (
-                    <PasoFecha
-                      dias={dias}
-                      diaIdx={diaIdx}
-                      slots={slots}
-                      slot={slot}
-                      onDia={(i) => { setDiaIdx(i); setSlot(null); }}
-                      onSlot={setSlot}
-                    />
+                    <div className="space-y-6">
+                      <h3 className="font-display text-xl font-bold text-ink">Elige fecha y hora</h3>
+                      <div className="rounded-[var(--radius-card)] border border-line p-3 sm:p-4">
+                        <Calendar value={fecha} onChange={(d) => { setFecha(d); setSlot(null); }} />
+                      </div>
+                      {fecha && (
+                        <div>
+                          <div className="mb-2.5 text-sm font-semibold capitalize text-ink">
+                            {fecha.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                            {slots.length === 0 && (
+                              <p className="col-span-full text-sm text-slate">No hay horarios para este dia.</p>
+                            )}
+                            {slots.map((s) => {
+                              const activo = slot?.inicioISO === s.inicioISO;
+                              return (
+                                <button
+                                  key={s.inicioISO}
+                                  type="button"
+                                  onClick={() => setSlot(s)}
+                                  className={`min-h-[44px] rounded-[var(--radius-field)] border text-sm font-medium transition-[background-color,color,border-color] ${activo
+                                      ? "border-ink bg-ink text-paper"
+                                      : "border-line bg-white text-ink hover:border-ink/40"
+                                    }`}
+                                >
+                                  {s.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-xs text-slate">Atencion: lunes a sabado, 8:00 a.m. a 5:00 p.m.</p>
+                    </div>
                   )}
 
-                  {paso === 3 && <PasoDatos datos={datos} onCambio={(d) => setDatos({ ...datos, ...d })} resultado={resultado} />}
+                  {paso === 3 && (
+                    <PasoDatos datos={datos} onCambio={(d) => setDatos({ ...datos, ...d })} campos={feedback?.campos} />
+                  )}
 
-                  {/* Error global no ligado a un campo */}
-                  {resultado && !resultado.ok && resultado.code !== "VALIDACION" && resultado.code !== "CONFIG_PENDIENTE" && (
-                    <div className="mt-5 flex items-start gap-2 rounded-[var(--radius-field)] bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {/* Banner global (conflicto o error no ligado a campo) — monocromo */}
+                  {feedback && (feedback.tipo === "conflicto" || !feedback.campos?.length) && (
+                    <div className="mt-5 flex items-start gap-2.5 rounded-[var(--radius-field)] border-l-2 border-ink bg-silver px-4 py-3 text-sm text-ink">
                       <WarningCircle weight="fill" className="mt-0.5 shrink-0" />
-                      <span>{resultado.mensaje}</span>
+                      <span>{feedback.mensaje}</span>
                     </div>
                   )}
 
                   {/* Navegacion */}
-                  <div className="mt-7 flex items-center justify-between gap-3">
+                  <div className="mt-8 flex items-center justify-between gap-3">
                     {paso > 1 ? (
                       <button
                         onClick={() => setPaso((p) => (p - 1) as 1 | 2)}
-                        className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-4 py-2.5 text-sm font-medium text-slate transition-colors hover:bg-ivory"
+                        className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] px-4 py-3 text-sm font-medium text-slate transition-colors hover:bg-silver active:scale-95"
                       >
                         <CaretLeft weight="bold" /> Atras
                       </button>
@@ -179,7 +254,7 @@ export function ReservaSection({
                       <button
                         onClick={() => setPaso((p) => (p + 1) as 2 | 3)}
                         disabled={(paso === 1 && !puedePaso1) || (paso === 2 && !puedePaso2)}
-                        className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-navy px-6 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                        className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] bg-ink px-6 py-3 text-sm font-semibold text-paper transition-transform hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
                       >
                         Continuar <CaretRight weight="bold" />
                       </button>
@@ -187,12 +262,10 @@ export function ReservaSection({
                       <button
                         onClick={enviar}
                         disabled={enviando}
-                        className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-gold px-7 py-3 text-sm font-semibold text-navy transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+                        className="inline-flex items-center gap-2 rounded-[var(--radius-pill)] bg-ink px-7 py-3.5 text-sm font-semibold text-paper transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50"
                       >
                         {enviando ? (
-                          <>
-                            <CircleNotch weight="bold" className="animate-spin" /> Enviando...
-                          </>
+                          <><CircleNotch weight="bold" className="animate-spin" /> Enviando...</>
                         ) : (
                           <>Confirmar reserva</>
                         )}
@@ -204,18 +277,17 @@ export function ReservaSection({
             </AnimatePresence>
           </div>
 
-          {/* Rail de resumen */}
-          <aside className="glass-dark hidden rounded-[var(--radius-card)] p-6 text-white lg:block">
-            <h3 className="font-display text-sm font-semibold uppercase tracking-wide text-gold-soft">Tu reserva</h3>
+          {/* Rail de resumen (desktop) */}
+          <aside className="glass-dark hidden rounded-[var(--radius-card)] p-6 text-paper lg:block">
+            <h3 className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-paper/50">Tu reserva</h3>
             <div className="mt-5 space-y-4">
               <ResumenFila etiqueta="Tratamiento" valor={servicioSel?.titulo ?? "Por elegir"} />
               <ResumenFila etiqueta="Especialista" valor={especialistaSel?.nombre ?? "Sin preferencia"} />
               <ResumenFila etiqueta="Sede" valor={sedeSel?.nombre ?? "Por elegir"} />
               <ResumenFila etiqueta="Fecha y hora" valor={slot ? slotLegible(slot.inicioISO) : "Por elegir"} />
             </div>
-            <div className="mt-6 border-t border-white/10 pt-4 text-xs text-white/55">
-              Al confirmar, tu cita queda registrada y un asesor la valida. Recibiras la confirmacion
-              por los canales que dejes.
+            <div className="mt-6 border-t border-white/10 pt-4 text-xs leading-relaxed text-paper/50">
+              Al confirmar, tu cita queda registrada y recibiras la confirmacion por los canales que dejes.
             </div>
           </aside>
         </div>
@@ -233,21 +305,19 @@ function Progreso({ paso }: { paso: 1 | 2 | 3 }) {
     { n: 3, label: "Tus datos" },
   ];
   return (
-    <div className="mb-7 flex items-center gap-2">
+    <div className="mb-8 flex items-center gap-2">
       {items.map((it, i) => (
         <div key={it.n} className="flex flex-1 items-center gap-2">
           <div
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${paso >= it.n ? "bg-navy text-white" : "bg-ivory text-slate"
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${paso >= it.n ? "bg-ink text-paper" : "bg-silver text-slate"
               }`}
           >
             {it.n}
           </div>
-          <span className={`hidden text-xs font-medium sm:inline ${paso >= it.n ? "text-navy" : "text-slate"}`}>
+          <span className={`hidden text-xs font-medium sm:inline ${paso >= it.n ? "text-ink" : "text-slate"}`}>
             {it.label}
           </span>
-          {i < items.length - 1 && (
-            <div className={`h-px flex-1 ${paso > it.n ? "bg-navy" : "bg-line"}`} />
-          )}
+          {i < items.length - 1 && <div className={`h-px flex-1 ${paso > it.n ? "bg-ink" : "bg-line"}`} />}
         </div>
       ))}
     </div>
@@ -269,7 +339,7 @@ function PasoServicio({
 }) {
   return (
     <div className="space-y-5">
-      <h3 className="font-display text-xl font-semibold text-navy">Que te gustaria mejorar?</h3>
+      <h3 className="font-display text-xl font-bold text-ink">Que te gustaria mejorar?</h3>
 
       <Campo label="Tratamiento" requerido>
         <select className="field" value={servicioSlug} onChange={(e) => onServicio(e.target.value)}>
@@ -305,143 +375,47 @@ function PasoServicio({
   );
 }
 
-function PasoFecha({
-  dias, diaIdx, slots, slot, onDia, onSlot,
-}: {
-  dias: Date[];
-  diaIdx: number;
-  slots: Slot[];
-  slot: Slot | null;
-  onDia: (i: number) => void;
-  onSlot: (s: Slot) => void;
-}) {
-  return (
-    <div className="space-y-5">
-      <h3 className="font-display flex items-center gap-2 text-xl font-semibold text-navy">
-        <Calendar weight="duotone" className="text-gold" /> Elige fecha y hora
-      </h3>
-
-      {/* Dias */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {dias.map((d, i) => {
-          const { dia, num, mes } = fechaCorta(d);
-          const activo = i === diaIdx;
-          return (
-            <button
-              key={d.toISOString()}
-              onClick={() => onDia(i)}
-              className={`flex min-w-[64px] shrink-0 flex-col items-center rounded-[var(--radius-field)] border px-3 py-2.5 transition-colors ${activo ? "border-navy bg-navy text-white" : "border-line bg-white text-navy hover:border-gold/50"
-                }`}
-            >
-              <span className="text-[11px] uppercase opacity-70">{dia}</span>
-              <span className="font-display text-lg font-semibold leading-tight">{num}</span>
-              <span className="text-[11px] uppercase opacity-70">{mes}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Slots */}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {slots.map((s) => {
-          const activo = slot?.inicioISO === s.inicioISO;
-          return (
-            <button
-              key={s.inicioISO}
-              onClick={() => onSlot(s)}
-              className={`rounded-[var(--radius-field)] border px-2 py-2.5 text-sm font-medium transition-colors ${activo ? "border-gold bg-gold/10 text-navy" : "border-line bg-white text-slate hover:border-gold/50"
-                }`}
-            >
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
-      <p className="text-xs text-slate">Horario de atencion: lunes a sabado, 8:00 a.m. a 5:00 p.m.</p>
-    </div>
-  );
-}
-
 function PasoDatos({
-  datos, onCambio, resultado,
+  datos, onCambio, campos,
 }: {
   datos: Datos;
   onCambio: (d: Partial<Datos>) => void;
-  resultado: ReservaResultado | null;
+  campos?: string[];
 }) {
-  const validacion = resultado && !resultado.ok && resultado.code === "VALIDACION" ? resultado : null;
-  const map: Record<string, string> = {
-    pacienteNombre: "nombre",
-    pacienteTelefono: "telefono",
-    pacienteEmail: "email",
-    consentimiento: "consentimiento",
-  };
-  const campoConError = validacion?.campo ? map[validacion.campo] : undefined;
-  const mensajeError = validacion?.mensaje;
-
+  const has = (k: string) => campos?.includes(k);
   return (
     <div className="space-y-4">
-      <h3 className="font-display flex items-center gap-2 text-xl font-semibold text-navy">
-        <User weight="duotone" className="text-gold" /> Tus datos de contacto
+      <h3 className="font-display flex items-center gap-2 text-xl font-bold text-ink">
+        <User weight="duotone" /> Tus datos de contacto
       </h3>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Campo label="Nombre completo" requerido error={campoConError === "nombre" ? mensajeError : undefined}>
-          <input
-            className="field"
-            value={datos.nombre}
-            onChange={(e) => onCambio({ nombre: e.target.value })}
-            placeholder="Maria Fernanda Gomez"
-            autoComplete="name"
-          />
+        <Campo label="Nombre completo" requerido error={has("paciente_nombre") ? "Requerido" : undefined}>
+          <input className="field" value={datos.nombre} onChange={(e) => onCambio({ nombre: e.target.value })} placeholder="Maria Fernanda Gomez" autoComplete="name" />
         </Campo>
-        <Campo label="WhatsApp" requerido error={campoConError === "telefono" ? mensajeError : undefined}>
-          <input
-            className="field"
-            value={datos.telefono}
-            onChange={(e) => onCambio({ telefono: e.target.value })}
-            placeholder="300 111 2233"
-            inputMode="tel"
-            autoComplete="tel"
-          />
+        <Campo label="WhatsApp" requerido error={has("paciente_telefono") ? "Requerido" : undefined}>
+          <input className="field" value={datos.telefono} onChange={(e) => onCambio({ telefono: e.target.value })} placeholder="300 111 2233" inputMode="tel" autoComplete="tel" />
         </Campo>
       </div>
 
-      <Campo label="Correo electronico" ayuda="Opcional. Te enviamos la confirmacion aqui." error={campoConError === "email" ? mensajeError : undefined}>
-        <input
-          className="field"
-          value={datos.email}
-          onChange={(e) => onCambio({ email: e.target.value })}
-          placeholder="tucorreo@ejemplo.com"
-          inputMode="email"
-          autoComplete="email"
-        />
+      <Campo label="Correo electronico" ayuda="Opcional. Te enviamos la confirmacion aqui.">
+        <input className="field" value={datos.email} onChange={(e) => onCambio({ email: e.target.value })} placeholder="tucorreo@ejemplo.com" inputMode="email" autoComplete="email" />
       </Campo>
 
       <Campo label="Mensaje" ayuda="Opcional. Cuentanos que buscas.">
-        <textarea
-          className="field min-h-[80px] resize-none"
-          value={datos.notas}
-          onChange={(e) => onCambio({ notas: e.target.value })}
-          placeholder="Quiero una valoracion para diseno de sonrisa."
-        />
+        <textarea className="field min-h-[80px] resize-none" value={datos.notas} onChange={(e) => onCambio({ notas: e.target.value })} placeholder="Quiero una valoracion para diseno de sonrisa." />
       </Campo>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-field)] bg-ivory p-3 text-sm text-slate">
+      <label className={`flex cursor-pointer items-start gap-3 rounded-[var(--radius-field)] p-3 text-sm text-slate transition-colors ${has("consentimiento") ? "bg-silver ring-1 ring-ink" : "bg-silver"}`}>
         <input
           type="checkbox"
           checked={datos.consentimiento}
           onChange={(e) => onCambio({ consentimiento: e.target.checked })}
-          className="mt-0.5 h-4 w-4 accent-[color:var(--color-gold)]"
+          className="mt-0.5 h-4 w-4 accent-[color:var(--color-ink)]"
         />
-        <span>
-          Autorizo el tratamiento de mis datos personales conforme a la Ley 1581 de 2012 (Habeas Data)
-          para gestionar mi cita.
-        </span>
+        <span>Autorizo el tratamiento de mis datos personales conforme a la Ley 1581 de 2012 (Habeas Data) para gestionar mi cita.</span>
       </label>
-      {campoConError === "consentimiento" && mensajeError && (
-        <p className="text-sm text-red-600">{mensajeError}</p>
-      )}
+      {has("consentimiento") && <p className="text-sm font-medium text-ink">Debes autorizar el tratamiento de datos para continuar.</p>}
     </div>
   );
 }
@@ -457,12 +431,12 @@ function Campo({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-navy">
-        {label} {requerido && <span className="text-gold">*</span>}
+      <span className="mb-1.5 block text-sm font-medium text-ink">
+        {label} {requerido && <span className="text-ink">*</span>}
       </span>
       {children}
       {error ? (
-        <span className="mt-1 block text-xs text-red-600">{error}</span>
+        <span className="mt-1 block text-xs font-medium text-ink">{error}</span>
       ) : ayuda ? (
         <span className="mt-1 block text-xs text-slate">{ayuda}</span>
       ) : null}
@@ -473,36 +447,41 @@ function Campo({
 function ResumenFila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wide text-white/45">{etiqueta}</div>
-      <div className="mt-0.5 text-sm font-medium text-white">{valor}</div>
+      <div className="text-xs uppercase tracking-[0.14em] text-paper/40">{etiqueta}</div>
+      <div className="mt-0.5 text-sm font-medium text-paper">{valor}</div>
     </div>
   );
 }
 
-function Exito({ resultado }: { resultado: ReservaResultado }) {
-  const demo = !resultado.ok && resultado.code === "CONFIG_PENDIENTE";
+function Exito({ onNueva }: { onNueva: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96 }}
+      initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="flex flex-col items-center py-8 text-center"
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      className="flex flex-col items-center py-10 text-center"
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
-        <CheckCircle weight="fill" size={42} className="text-green-600" />
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-silver">
+        <CheckCircle weight="fill" size={42} className="text-ink" />
       </div>
-      <h3 className="font-display mt-5 text-2xl font-semibold text-navy">Solicitud recibida</h3>
+      <h3 className="font-display mt-6 text-2xl font-bold text-ink">Cita confirmada</h3>
       <p className="mt-3 max-w-md text-slate">
-        {demo
-          ? "Tu solicitud se proceso en modo demostracion. Configura el secreto del servidor para enviarla a la clinica."
-          : "Tu cita quedo registrada. Un asesor de NovaSmile la confirmara muy pronto por WhatsApp y correo."}
+        Tu cita quedo registrada. Recibiras la confirmacion por WhatsApp y correo en breve.
       </p>
-      <a
-        href="#top"
-        className="mt-7 inline-flex rounded-[var(--radius-pill)] bg-navy px-6 py-3 text-sm font-semibold text-white transition-transform hover:scale-[1.02]"
-      >
-        Volver al inicio
-      </a>
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <button
+          onClick={onNueva}
+          className="rounded-[var(--radius-pill)] bg-ink px-6 py-3 text-sm font-semibold text-paper transition-transform hover:scale-[1.02] active:scale-95"
+        >
+          Agendar otra cita
+        </button>
+        <a
+          href="#top"
+          className="rounded-[var(--radius-pill)] px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-silver"
+        >
+          Volver al inicio
+        </a>
+      </div>
     </motion.div>
   );
 }
