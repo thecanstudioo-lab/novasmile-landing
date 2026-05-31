@@ -69,25 +69,25 @@ export function ReservaSection({
     setEnviando(true);
     setResultado(null);
 
-    const input: ReservaInput = {
-      servicioSlug,
-      especialistaId: especialistaId || null,
-      sedeId,
-      inicioISO: slot!.inicioISO,
-      finISO: slot!.finISO,
-      pacienteNombre: datos.nombre,
-      pacienteTelefono: datos.telefono,
-      pacienteEmail: datos.email || undefined,
+    const payload = {
+      paciente_nombre: datos.nombre,
+      paciente_email: datos.email || null,
+      paciente_telefono: datos.telefono,
+      servicio: servicioSlug,
+      especialista_id: especialistaId || undefined,
+      sede_id: sedeId,
+      inicio: slot!.inicioISO,
+      fin: slot!.finISO,
       notas: datos.notas || undefined,
-      consentimiento: datos.consentimiento,
     };
 
     try {
       const resp = await fetch("/api/reservar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify(payload), // <-- Enviamos el payload mapeado, no el input antiguo
       });
+
       const json = (await resp.json()) as ReservaResultado;
       setResultado(json);
     } catch {
@@ -237,9 +237,8 @@ function Progreso({ paso }: { paso: 1 | 2 | 3 }) {
       {items.map((it, i) => (
         <div key={it.n} className="flex flex-1 items-center gap-2">
           <div
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-              paso >= it.n ? "bg-navy text-white" : "bg-ivory text-slate"
-            }`}
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${paso >= it.n ? "bg-navy text-white" : "bg-ivory text-slate"
+              }`}
           >
             {it.n}
           </div>
@@ -331,9 +330,8 @@ function PasoFecha({
             <button
               key={d.toISOString()}
               onClick={() => onDia(i)}
-              className={`flex min-w-[64px] shrink-0 flex-col items-center rounded-[var(--radius-field)] border px-3 py-2.5 transition-colors ${
-                activo ? "border-navy bg-navy text-white" : "border-line bg-white text-navy hover:border-gold/50"
-              }`}
+              className={`flex min-w-[64px] shrink-0 flex-col items-center rounded-[var(--radius-field)] border px-3 py-2.5 transition-colors ${activo ? "border-navy bg-navy text-white" : "border-line bg-white text-navy hover:border-gold/50"
+                }`}
             >
               <span className="text-[11px] uppercase opacity-70">{dia}</span>
               <span className="font-display text-lg font-semibold leading-tight">{num}</span>
@@ -351,9 +349,8 @@ function PasoFecha({
             <button
               key={s.inicioISO}
               onClick={() => onSlot(s)}
-              className={`rounded-[var(--radius-field)] border px-2 py-2.5 text-sm font-medium transition-colors ${
-                activo ? "border-gold bg-gold/10 text-navy" : "border-line bg-white text-slate hover:border-gold/50"
-              }`}
+              className={`rounded-[var(--radius-field)] border px-2 py-2.5 text-sm font-medium transition-colors ${activo ? "border-gold bg-gold/10 text-navy" : "border-line bg-white text-slate hover:border-gold/50"
+                }`}
             >
               {s.label}
             </button>
